@@ -6,12 +6,14 @@ import { companyAPI } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { Building2, Users, Clock, Star, ArrowRight, Loader2 } from 'lucide-react';
 import { cn, getCompanySizeColor } from '@/lib/utils';
+import Image from 'next/image';
 
 interface Company {
   id: number;
   name: string;
   slug: string;
   description: string;
+  avatar?: string;
   industry: string;
   company_size: string;
   tech_stack: string[];
@@ -133,7 +135,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center">
                     <div className="h-10 w-10 flex items-center justify-center rounded-full bg-gray-100">
-                      <Building2 className="h-5 w-5 text-gray-600" />
+                      {company.avatar && <Image src={`http://127.0.0.1:8000/${company.avatar}`} alt={company.name} height={50} width={50}/>}
                     </div>
                     <h3 className="ml-3 text-lg font-semibold text-gray-900">
                       {company.name}

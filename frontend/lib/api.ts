@@ -28,20 +28,20 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
-       try {
-         const refreshToken = localStorage.getItem('refresh_token');
-         if (refreshToken) {
-           const response = await axios.post(`${API_BASE_URL}/auth/jwt/refresh/`, {
-             refresh: refreshToken,
-           });
-           
-           const { access } = response.data;
-           localStorage.setItem('access_token', access);
-           
-           originalRequest.headers.Authorization = `Bearer ${access}`;
-           return api(originalRequest);
-         }
-       } catch (refreshError) {
+      try {
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (refreshToken) {
+          const response = await axios.post(`${API_BASE_URL}/auth/jwt/refresh/`, {
+            refresh: refreshToken,
+          });
+          
+          const { access } = response.data;
+          localStorage.setItem('access_token', access);
+          
+          originalRequest.headers.Authorization = `Bearer ${access}`;
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
         // Refresh failed, redirect to login
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
@@ -77,12 +77,7 @@ export const authAPI = {
   },
   
   getUserProfile: async () => {
-    const response = await api.get('/auth/users/me/', {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `JWT ${localStorage.getItem('access_token')}`,
-      },
-    });
+    const response = await api.get('/auth/users/me/');
     return response.data;
   },
   

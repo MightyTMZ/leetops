@@ -32,6 +32,7 @@ class CompanyListView(generics.ListAPIView):
                 'name': company.name,
                 'slug': company.slug,
                 'description': company.description,
+                'avatar': company.avatar.url if company.avatar else None,
                 'industry': company.industry,
                 'company_size': company.company_size,
                 'tech_stack': company.tech_stack,
