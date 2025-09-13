@@ -147,7 +147,7 @@ class IncidentAttempt(models.Model):
     """User's attempt to resolve a specific incident"""
     incident = models.ForeignKey(Incident, on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    session = models.ForeignKey(SimulationSession, on_delete=models.CASCADE)
+    session = models.ForeignKey(SimulationSession, on_delete=models.CASCADE, null=True, blank=True)
     
     # Attempt timing
     started_at = models.DateTimeField(auto_now_add=True)
@@ -165,6 +165,19 @@ class IncidentAttempt(models.Model):
     was_root_cause_fix = models.BooleanField(default=False)
     points_earned = models.IntegerField(default=0)
     quality_score = models.FloatField(default=0.0)  # 0.0 to 1.0
+    
+    # LLM Grading Results
+    llm_grade = models.FloatField(null=True, blank=True)  # Overall grade 1-10
+    llm_technical_accuracy = models.FloatField(null=True, blank=True)  # 1-10
+    llm_problem_solving = models.FloatField(null=True, blank=True)  # 1-10
+    llm_communication = models.FloatField(null=True, blank=True)  # 1-10
+    llm_efficiency = models.FloatField(null=True, blank=True)  # 1-10
+    llm_best_practices = models.FloatField(null=True, blank=True)  # 1-10
+    llm_is_correct = models.BooleanField(null=True, blank=True)
+    llm_feedback = models.JSONField(default=dict)  # Detailed feedback
+    llm_correctness_explanation = models.TextField(blank=True)
+    llm_improvement_areas = models.JSONField(default=list)
+    llm_grading_method = models.CharField(max_length=20, default='llm')  # 'llm' or 'fallback'
     
     class Meta:
         ordering = ['-started_at']

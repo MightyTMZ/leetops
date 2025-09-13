@@ -58,7 +58,7 @@ class RatingCalculator:
     }
     
     @classmethod
-    def calculate_incident_rating(
+    def calculate_incident_rating_with_llm(
         cls,
         time_limit_minutes: int,
         actual_time_minutes: int,
@@ -66,10 +66,12 @@ class RatingCalculator:
         severity: str,
         was_successful: bool = True,
         was_escalated: bool = False,
-        was_abandoned: bool = False
+        was_abandoned: bool = False,
+        llm_score: float = None,
+        llm_is_correct: bool = None
     ) -> Dict[str, Any]:
         """
-        Calculate rating change for a single incident resolution
+        Calculate rating change for a single incident resolution with LLM grading integration
         
         Args:
             time_limit_minutes: Time limit for resolution
@@ -79,10 +81,16 @@ class RatingCalculator:
             was_successful: Whether the incident was successfully resolved
             was_escalated: Whether the incident was escalated
             was_abandoned: Whether the user gave up on the incident
+            llm_score: LLM overall score (1-10)
+            llm_is_correct: LLM assessment of correctness
             
         Returns:
             Dict containing rating calculation details
         """
+        
+        # Use LLM assessment if available
+        if llm_is_correct is not None and not was_abandoned and not was_escalated:
+            was_successful = llm_is_correct
         
         # Handle penalties first
         if was_abandoned:
@@ -104,6 +112,12 @@ class RatingCalculator:
         # Get quality multiplier
         quality_multiplier = cls.QUALITY_MULTIPLIERS.get(solution_type, 1.0)
         
+        # Apply LLM quality adjustment if available
+        if llm_score is not None:
+            # Convert LLM score (1-10) to quality multiplier (0.1-2.0)
+            llm_quality_multiplier = (llm_score / 10.0) * 2.0
+            quality_multiplier *= llm_quality_multiplier
+        
         # Calculate final points
         total_points = (base_points + speed_bonus) * quality_multiplier
         
@@ -116,14 +130,43 @@ class RatingCalculator:
             "quality_multiplier": quality_multiplier,
             "total_points": final_points,
             "time_ratio": time_ratio,
+            "llm_adjusted": llm_score is not None,
             "calculation_breakdown": {
                 "severity": severity,
                 "time_limit": time_limit_minutes,
                 "actual_time": actual_time_minutes,
                 "solution_type": solution_type,
-                "speed_category": cls._get_speed_category(time_ratio)
+                "speed_category": cls._get_speed_category(time_ratio),
+                "llm_score": llm_score,
+                "llm_is_correct": llm_is_correct
             }
         }
+    
+    @classmethod
+    def calculate_incident_rating(
+        cls,
+        time_limit_minutes: int,
+        actual_time_minutes: int,
+        solution_type: str,
+        severity: str,
+        was_successful: bool = True,
+        was_escalated: bool = False,
+        was_abandoned: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Calculate rating change for a single incident resolution (backward compatibility)
+        """
+        return cls.calculate_incident_rating_with_llm(
+            time_limit_minutes=time_limit_minutes,
+            actual_time_minutes=actual_time_minutes,
+            solution_type=solution_type,
+            severity=severity,
+            was_successful=was_successful,
+            was_escalated=was_escalated,
+            was_abandoned=was_abandoned,
+            llm_score=None,
+            llm_is_correct=None
+        )
     
     @classmethod
     def _calculate_penalty_rating(cls, penalty_type: str) -> Dict[str, Any]:

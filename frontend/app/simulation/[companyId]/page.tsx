@@ -30,17 +30,36 @@ interface Incident {
   status: string;
 }
 
-interface SimulationSession {
-  session_id: string;
-  company: {
-    id: number;
-    name: string;
-    slug: string;
+interface LLMGrading {
+  overall_score: number;
+  technical_accuracy: number;
+  problem_solving: number;
+  communication: number;
+  efficiency: number;
+  best_practices: number;
+  is_correct: boolean;
+  feedback: {
+    strengths: string[];
+    weaknesses: string[];
+    suggestions: string[];
+    overall_feedback: string;
   };
-  scheduled_duration_hours: number;
-  started_at: string;
-  incident_schedule: any[];
-  total_incidents_planned: number;
+  correctness_explanation: string;
+  improvement_areas: string[];
+  grading_method: string;
+}
+
+interface ResolutionResult {
+  incident_resolved: boolean;
+  time_spent_minutes: number;
+  rating_result: any;
+  rating_change: number;
+  new_overall_rating: number;
+  attempt_id: string;
+  incident_status: string;
+  llm_grading: LLMGrading;
+  adjusted_points: number;
+  quality_multiplier: number;
 }
 
 export default function SimulationPage() {
@@ -50,10 +69,8 @@ export default function SimulationPage() {
   const companyId = params.companyId as string;
 
   const [company, setCompany] = useState<Company | null>(null);
-  const [session, setSession] = useState<SimulationSession | null>(null);
   const [currentIncident, setCurrentIncident] = useState<Incident | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSimulationActive, setIsSimulationActive] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [resolutionApproach, setResolutionApproach] = useState('');
   const [codeChanges, setCodeChanges] = useState('');
@@ -61,6 +78,9 @@ export default function SimulationPage() {
   const [newCommand, setNewCommand] = useState('');
   const [solutionType, setSolutionType] = useState<'root_cause' | 'workaround' | 'escalation' | 'abandonment'>('workaround');
   const [isResolving, setIsResolving] = useState(false);
+  const [resolutionResult, setResolutionResult] = useState<ResolutionResult | null>(null);
+  const [showGradingModal, setShowGradingModal] = useState(false);
+  const [currentUserRating, setCurrentUserRating] = useState(800);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -68,17 +88,17 @@ export default function SimulationPage() {
       return;
     }
 
-    fetchCompanyAndStartSimulation();
+    fetchCompanyAndGenerateIncident();
   }, [companyId, isAuthenticated, router]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isSimulationActive && currentIncident && timeRemaining > 0) {
+    if (currentIncident && timeRemaining > 0) {
       interval = setInterval(() => {
         setTimeRemaining(prev => {
           if (prev <= 1) {
             // Time's up - auto-escalate
-            handleResolveIncident(true, 'escalation');
+            handleResolveIncident(false, 'escalation');
             return 0;
           }
           return prev - 1;
@@ -86,33 +106,26 @@ export default function SimulationPage() {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isSimulationActive, currentIncident, timeRemaining]);
+  }, [currentIncident, timeRemaining]);
 
-  const fetchCompanyAndStartSimulation = async () => {
+  const fetchCompanyAndGenerateIncident = async () => {
     try {
       // Fetch company details
       const companyResponse = await companyAPI.getCompany(parseInt(companyId));
       setCompany(companyResponse);
 
-      // Start simulation
-      const sessionResponse = await simulationAPI.startSimulation(parseInt(companyId), 8);
-      setSession(sessionResponse);
-      setIsSimulationActive(true);
-
-      // Generate first incident
+      // Generate first incident directly
       await generateNewIncident();
     } catch (error) {
-      console.error('Failed to start simulation:', error);
+      console.error('Failed to load company and generate incident:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const generateNewIncident = async () => {
-    if (!session) return;
-
     try {
-      const incidentResponse = await simulationAPI.generateIncident(session.session_id);
+      const incidentResponse = await simulationAPI.generateIncident(parseInt(companyId));
       setCurrentIncident(incidentResponse);
       setTimeRemaining(incidentResponse.time_limit_minutes * 60); // Convert to seconds
       setResolutionApproach('');
@@ -133,14 +146,13 @@ export default function SimulationPage() {
   };
 
   const handleResolveIncident = async (wasSuccessful: boolean, type?: 'root_cause' | 'workaround' | 'escalation' | 'abandonment') => {
-    if (!currentIncident || !session || isResolving) return;
+    if (!currentIncident || isResolving) return;
 
     setIsResolving(true);
     try {
       const resolutionType = type || solutionType;
-      await simulationAPI.resolveIncident({
+      const result = await simulationAPI.resolveIncident({
         incidentId: currentIncident.incident_id,
-        sessionId: session.session_id,
         resolutionApproach,
         codeChanges,
         commandsExecuted,
@@ -148,8 +160,17 @@ export default function SimulationPage() {
         wasSuccessful,
       });
 
-      // Generate next incident or end simulation
-      await generateNewIncident();
+      // Store the resolution result with LLM grading
+      setResolutionResult(result);
+      setCurrentUserRating(result.new_overall_rating);
+      setShowGradingModal(true);
+
+      // Generate next incident after showing grading
+      setTimeout(async () => {
+        await generateNewIncident();
+        setShowGradingModal(false);
+        setResolutionResult(null);
+      }, 5000); // Show grading for 5 seconds
     } catch (error) {
       console.error('Failed to resolve incident:', error);
     } finally {
@@ -157,15 +178,8 @@ export default function SimulationPage() {
     }
   };
 
-  const endSimulation = async () => {
-    if (!session) return;
-
-    try {
-      await simulationAPI.endSimulation(session.session_id);
-      router.push('/dashboard');
-    } catch (error) {
-      console.error('Failed to end simulation:', error);
-    }
+  const goBackToDashboard = () => {
+    router.push('/dashboard');
   };
 
   if (isLoading) {
@@ -176,13 +190,13 @@ export default function SimulationPage() {
     );
   }
 
-  if (!company || !session) {
+  if (!company) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <XCircle className="mx-auto h-12 w-12 text-red-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Simulation Error</h3>
-          <p className="mt-1 text-sm text-gray-500">Failed to load simulation data.</p>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">Loading Error</h3>
+          <p className="mt-1 text-sm text-gray-500">Failed to load company data.</p>
         </div>
       </div>
     );
@@ -210,12 +224,31 @@ export default function SimulationPage() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Current Rating Display */}
+              <div className="flex items-center px-3 py-2 bg-blue-50 rounded-md">
+                <span className="text-sm font-medium text-blue-700">Rating:</span>
+                <span className="ml-2 text-lg font-bold text-blue-900">{currentUserRating}</span>
+              </div>
+              
+              {/* Timer Display */}
+              {currentIncident && timeRemaining > 0 && (
+                <div className={cn(
+                  "flex items-center px-3 py-2 rounded-md font-bold text-lg",
+                  timeRemaining < 60 ? "bg-red-100 text-red-700" : 
+                  timeRemaining < 300 ? "bg-yellow-100 text-yellow-700" : 
+                  "bg-green-100 text-green-700"
+                )}>
+                  <Clock className="h-5 w-5 mr-2" />
+                  {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
+                </div>
+              )}
+              
               <button
-                onClick={endSimulation}
+                onClick={goBackToDashboard}
                 className="flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
               >
                 <Square className="h-4 w-4 mr-2" />
-                End Simulation
+                Back to Dashboard
               </button>
             </div>
           </div>
@@ -253,11 +286,9 @@ export default function SimulationPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="flex items-center text-lg font-semibold text-red-600">
-                        <Clock className="h-5 w-5 mr-2" />
-                        {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
+                      <div className="text-sm text-gray-500">
+                        Time Limit: {currentIncident.time_limit_minutes} minutes
                       </div>
-                      <p className="text-sm text-gray-500">Time Remaining</p>
                     </div>
                   </div>
 
@@ -433,29 +464,21 @@ export default function SimulationPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Session Info */}
+            {/* Company Info */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Info</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Company Info</h3>
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Company</span>
                   <span className="text-sm font-medium text-gray-900">{company.name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Duration</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {session.scheduled_duration_hours}h
-                  </span>
+                  <span className="text-sm text-gray-600">Industry</span>
+                  <span className="text-sm font-medium text-gray-900">{company.industry}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Planned Incidents</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {session.total_incidents_planned}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Status</span>
-                  <span className="text-sm font-medium text-green-600">Active</span>
+                  <span className="text-sm text-gray-600">Size</span>
+                  <span className="text-sm font-medium text-gray-900">{company.company_size}</span>
                 </div>
               </div>
             </div>
@@ -496,6 +519,123 @@ export default function SimulationPage() {
           </div>
         </div>
       </div>
+
+      {/* LLM Grading Modal */}
+      {showGradingModal && resolutionResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Incident Resolution Grading</h2>
+                <div className="flex items-center space-x-4">
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500">Overall Score</div>
+                    <div className="text-3xl font-bold text-blue-600">
+                      {resolutionResult.llm_grading.overall_score}/10
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500">Rating Change</div>
+                    <div className={cn(
+                      "text-2xl font-bold",
+                      resolutionResult.rating_change >= 0 ? "text-green-600" : "text-red-600"
+                    )}>
+                      {resolutionResult.rating_change >= 0 ? "+" : ""}{resolutionResult.rating_change}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Detailed Scores */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <div className="text-center p-3 bg-gray-50 rounded">
+                  <div className="text-sm text-gray-600">Technical</div>
+                  <div className="text-xl font-bold">{resolutionResult.llm_grading.technical_accuracy}/10</div>
+                </div>
+                <div className="text-center p-3 bg-gray-50 rounded">
+                  <div className="text-sm text-gray-600">Problem Solving</div>
+                  <div className="text-xl font-bold">{resolutionResult.llm_grading.problem_solving}/10</div>
+                </div>
+                <div className="text-center p-3 bg-gray-50 rounded">
+                  <div className="text-sm text-gray-600">Communication</div>
+                  <div className="text-xl font-bold">{resolutionResult.llm_grading.communication}/10</div>
+                </div>
+                <div className="text-center p-3 bg-gray-50 rounded">
+                  <div className="text-sm text-gray-600">Efficiency</div>
+                  <div className="text-xl font-bold">{resolutionResult.llm_grading.efficiency}/10</div>
+                </div>
+                <div className="text-center p-3 bg-gray-50 rounded">
+                  <div className="text-sm text-gray-600">Best Practices</div>
+                  <div className="text-xl font-bold">{resolutionResult.llm_grading.best_practices}/10</div>
+                </div>
+              </div>
+
+              {/* Feedback */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Overall Feedback</h3>
+                  <p className="text-gray-700 bg-gray-50 p-4 rounded">
+                    {resolutionResult.llm_grading.feedback.overall_feedback}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <h4 className="font-semibold text-green-700 mb-2">Strengths</h4>
+                    <ul className="text-sm text-gray-700 space-y-1">
+                      {resolutionResult.llm_grading.feedback.strengths.map((strength, index) => (
+                        <li key={index} className="flex items-start">
+                          <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                          {strength}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold text-red-700 mb-2">Areas for Improvement</h4>
+                    <ul className="text-sm text-gray-700 space-y-1">
+                      {resolutionResult.llm_grading.feedback.weaknesses.map((weakness, index) => (
+                        <li key={index} className="flex items-start">
+                          <XCircle className="h-4 w-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+                          {weakness}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold text-blue-700 mb-2">Suggestions</h4>
+                    <ul className="text-sm text-gray-700 space-y-1">
+                      {resolutionResult.llm_grading.feedback.suggestions.map((suggestion, index) => (
+                        <li key={index} className="flex items-start">
+                          <AlertTriangle className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                          {suggestion}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {resolutionResult.llm_grading.correctness_explanation && (
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Correctness Explanation</h4>
+                    <p className="text-gray-700 bg-blue-50 p-4 rounded">
+                      {resolutionResult.llm_grading.correctness_explanation}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <div className="text-center text-sm text-gray-500">
+                  Next incident will appear in a few seconds...
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

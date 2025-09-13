@@ -14,6 +14,7 @@ from .models import (
 )
 from .incident_generator import IncidentGenerator, create_company_data
 from .rating_calculator import RatingCalculator
+from .llm_grading import llm_grader
 from users.models import User
 
 
@@ -21,6 +22,7 @@ class CompanyListView(generics.ListAPIView):
     """List all available companies for simulation"""
     queryset = Company.objects.all()
     serializer_class = None  # Will be implemented with DRF serializers
+    permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request):
         companies = Company.objects.all()
@@ -49,6 +51,7 @@ class CompanyListView(generics.ListAPIView):
 
 class CompanyDetailView(APIView):
     """Get detailed information about a specific company"""
+    permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request, company_id):
         company = get_object_or_404(Company, id=company_id)
@@ -81,13 +84,14 @@ class CompanyDetailView(APIView):
         return Response(company_data)
 
 
-class StartSimulationView(APIView):
-    """Start a new simulation session for a user"""
+class GenerateIncidentView(APIView):
+    """Generate a new incident for a company"""
     permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request):
         company_id = request.data.get('company_id')
-        scheduled_duration_hours = request.data.get('duration_hours', 8)
+        severity = request.data.get('severity')  # Optional
+        time_of_day = request.data.get('time_of_day')  # Optional
         
         if not company_id:
             return Response(
@@ -97,78 +101,13 @@ class StartSimulationView(APIView):
         
         company = get_object_or_404(Company, id=company_id)
         
-        # Check if user has an active session
-        active_session = SimulationSession.objects.filter(
-            user=request.user, 
-            is_active=True
-        ).first()
-        
-        if active_session:
-            return Response(
-                {'error': 'User already has an active simulation session'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Create new simulation session
-        session = SimulationSession.objects.create(
-            user=request.user,
-            company=company,
-            scheduled_duration_hours=scheduled_duration_hours
-        )
-        
-        # Generate incident schedule for the session
-        generator = IncidentGenerator(company.name)
-        incident_schedule = generator.generate_incident_schedule(
-            work_hours=(company.work_hours_start.hour, company.work_hours_end.hour),
-            num_incidents=None  # Use default based on company frequency
-        )
-        
-        session_data = {
-            'session_id': str(session.id),
-            'company': {
-                'id': company.id,
-                'name': company.name,
-                'slug': company.slug
-            },
-            'scheduled_duration_hours': session.scheduled_duration_hours,
-            'started_at': session.started_at,
-            'incident_schedule': incident_schedule,
-            'total_incidents_planned': len(incident_schedule)
-        }
-        
-        return Response(session_data, status=status.HTTP_201_CREATED)
-
-
-class GenerateIncidentView(APIView):
-    """Generate a new incident for an active simulation session"""
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def post(self, request):
-        session_id = request.data.get('session_id')
-        severity = request.data.get('severity')  # Optional
-        time_of_day = request.data.get('time_of_day')  # Optional
-        
-        if not session_id:
-            return Response(
-                {'error': 'session_id is required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        session = get_object_or_404(SimulationSession, id=session_id, user=request.user)
-        
-        if not session.is_active:
-            return Response(
-                {'error': 'Simulation session is not active'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
         # Generate incident
-        generator = IncidentGenerator(session.company.name)
+        generator = IncidentGenerator(company.name)
         incident_data = generator.generate_incident(severity=severity, time_of_day=time_of_day)
         
         # Create incident in database
         incident = Incident.objects.create(
-            company=session.company,
+            company=company,
             title=incident_data['title'],
             description=incident_data['description'],
             severity=incident_data['severity'],
@@ -179,10 +118,6 @@ class GenerateIncidentView(APIView):
             monitoring_dashboard_url=incident_data['monitoring_dashboard_url'],
             assigned_user=request.user
         )
-        
-        # Update session incident count
-        session.incident_count += 1
-        session.save()
         
         incident_response = {
             'incident_id': str(incident.id),
@@ -253,61 +188,42 @@ class UserRatingView(APIView):
         return Response(response_data)
 
 
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def end_simulation(request):
-    """End an active simulation session"""
-    session_id = request.data.get('session_id')
-    
-    if not session_id:
-        return Response(
-            {'error': 'session_id is required'}, 
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    session = get_object_or_404(SimulationSession, id=session_id, user=request.user)
-    
-    if not session.is_active:
-        return Response(
-            {'error': 'Session is not active'}, 
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # End the session
-    session.is_active = False
-    session.is_completed = True
-    session.ended_at = timezone.now()
-    session.save()
-    
-    return Response({
-        'session_ended': True,
-        'session_id': str(session.id),
-        'ended_at': session.ended_at,
-        'total_duration_hours': (session.ended_at - session.started_at).total_seconds() / 3600
-    })
-
-
 class ResolveIncidentView(APIView):
-    """Resolve an incident and calculate rating"""
+    """Resolve an incident and calculate rating with LLM grading"""
     permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request):
-        incident_id = request.data.get('incident_id')
-        session_id = request.data.get('session_id')
-        resolution_approach = request.data.get('resolution_approach', '')
-        code_changes = request.data.get('code_changes', '')
-        commands_executed = request.data.get('commands_executed', [])
-        solution_type = request.data.get('solution_type', 'workaround')
-        was_successful = request.data.get('was_successful', True)
+        print(f"DEBUG: ResolveIncident request data: {request.data}")
+        print(f"DEBUG: Request user: {request.user}")
         
-        if not incident_id or not session_id:
+        incident_id = request.data.get('incident_id') or request.data.get('incidentId')
+        resolution_approach = request.data.get('resolution_approach') or request.data.get('resolutionApproach', '')
+        code_changes = request.data.get('code_changes') or request.data.get('codeChanges', '')
+        commands_executed = request.data.get('commands_executed') or request.data.get('commandsExecuted', [])
+        solution_type = request.data.get('solution_type') or request.data.get('solutionType', 'workaround')
+        was_successful = request.data.get('was_successful') or request.data.get('wasSuccessful', True)
+        
+        print(f"DEBUG: Parsed incident_id: {incident_id}")
+        print(f"DEBUG: Parsed solution_type: {solution_type}")
+        print(f"DEBUG: Parsed was_successful: {was_successful}")
+        
+        if not incident_id:
+            print("DEBUG: ERROR - incident_id is missing!")
             return Response(
-                {'error': 'incident_id and session_id are required'}, 
+                {'error': 'incident_id is required'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        incident = get_object_or_404(Incident, id=incident_id, assigned_user=request.user)
-        session = get_object_or_404(SimulationSession, id=session_id, user=request.user)
+        print(f"DEBUG: Looking up incident with id: {incident_id}")
+        try:
+            incident = get_object_or_404(Incident, id=incident_id, assigned_user=request.user)
+            print(f"DEBUG: Found incident: {incident.title}")
+        except Exception as e:
+            print(f"DEBUG: ERROR finding incident: {e}")
+            return Response(
+                {'error': f'Incident not found: {str(e)}'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
         
         if incident.status != 'active':
             return Response(
@@ -323,31 +239,103 @@ class ResolveIncidentView(APIView):
         was_escalated = solution_type == 'escalation'
         was_abandoned = solution_type == 'abandonment'
         
-        # Calculate rating
-        rating_result = RatingCalculator.calculate_incident_rating(
+        # Perform LLM grading
+        try:
+            incident_context = {
+                'affected_services': incident.affected_services,
+                'error_logs': incident.error_logs,
+                'codebase_context': incident.codebase_context,
+                'monitoring_dashboard_url': incident.monitoring_dashboard_url
+            }
+            
+            llm_grading_result = llm_grader.grade_incident_response(
+                incident_title=incident.title,
+                incident_description=incident.description,
+                incident_severity=incident.severity,
+                incident_context=incident_context,
+                user_resolution_approach=resolution_approach,
+                user_code_changes=code_changes,
+                user_commands_executed=commands_executed,
+                user_solution_type=solution_type,
+                time_spent_minutes=time_spent_minutes,
+                time_limit_minutes=incident.time_limit_minutes
+            )
+            
+            # Override was_successful based on LLM grading if it's more accurate
+            llm_is_correct = llm_grading_result.get('is_correct', was_successful)
+            if not was_abandoned and not was_escalated:
+                was_successful = llm_is_correct
+            
+        except Exception as e:
+            print(f"LLM grading failed: {e}")
+            # Fallback to basic grading
+            llm_grading_result = {
+                'overall_score': 5,
+                'technical_accuracy': 5,
+                'problem_solving': 5,
+                'communication': 5,
+                'efficiency': 5,
+                'best_practices': 5,
+                'is_correct': was_successful,
+                'feedback': {
+                    'strengths': ['Attempted to resolve the incident'],
+                    'weaknesses': ['Could improve technical approach'],
+                    'suggestions': ['Review incident response best practices'],
+                    'overall_feedback': 'Grading completed using fallback system due to LLM unavailability.'
+                },
+                'correctness_explanation': 'Solution evaluated using fallback system',
+                'improvement_areas': ['Technical accuracy', 'Problem-solving approach'],
+                'grading_method': 'fallback'
+            }
+        
+        # Calculate rating with LLM-informed scoring
+        rating_result = RatingCalculator.calculate_incident_rating_with_llm(
             time_limit_minutes=incident.time_limit_minutes,
             actual_time_minutes=time_spent_minutes,
             solution_type=solution_type,
             severity=incident.severity,
             was_successful=was_successful,
             was_escalated=was_escalated,
-            was_abandoned=was_abandoned
+            was_abandoned=was_abandoned,
+            llm_score=llm_grading_result.get('overall_score'),
+            llm_is_correct=llm_grading_result.get('is_correct')
         )
         
-        # Create incident attempt record
-        attempt = IncidentAttempt.objects.create(
-            incident=incident,
-            user=request.user,
-            session=session,
-            time_spent_minutes=time_spent_minutes,
-            resolution_approach=resolution_approach,
-            code_changes=code_changes,
-            commands_executed=commands_executed,
-            was_successful=was_successful,
-            was_root_cause_fix=(solution_type == 'root_cause'),
-            points_earned=rating_result['total_points'],
-            quality_score=rating_result.get('quality_multiplier', 1.0)
-        )
+        # Create incident attempt record with LLM grading data
+        print(f"DEBUG: Creating IncidentAttempt...")
+        try:
+            attempt = IncidentAttempt.objects.create(
+                incident=incident,
+                user=request.user,
+                session=None,  # No session needed
+                time_spent_minutes=time_spent_minutes,
+                resolution_approach=resolution_approach,
+                code_changes=code_changes,
+                commands_executed=commands_executed,
+                was_successful=was_successful,
+                was_root_cause_fix=(solution_type == 'root_cause'),
+                points_earned=rating_result['total_points'],
+                quality_score=rating_result.get('quality_multiplier', 1.0),
+                # LLM grading results
+                llm_grade=llm_grading_result.get('overall_score'),
+                llm_technical_accuracy=llm_grading_result.get('technical_accuracy'),
+                llm_problem_solving=llm_grading_result.get('problem_solving'),
+                llm_communication=llm_grading_result.get('communication'),
+                llm_efficiency=llm_grading_result.get('efficiency'),
+                llm_best_practices=llm_grading_result.get('best_practices'),
+                llm_is_correct=llm_grading_result.get('is_correct'),
+                llm_feedback=llm_grading_result.get('feedback', {}),
+                llm_correctness_explanation=llm_grading_result.get('correctness_explanation', ''),
+                llm_improvement_areas=llm_grading_result.get('improvement_areas', []),
+                llm_grading_method=llm_grading_result.get('grading_method', 'llm')
+            )
+            print(f"DEBUG: IncidentAttempt created successfully: {attempt.id}")
+        except Exception as e:
+            print(f"DEBUG: ERROR creating IncidentAttempt: {e}")
+            return Response(
+                {'error': f'Failed to create incident attempt: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
         # Update incident status
         incident.status = 'resolved' if was_successful else 'escalated' if was_escalated else 'abandoned'
@@ -356,31 +344,20 @@ class ResolveIncidentView(APIView):
         incident.solution_type = solution_type
         incident.save()
         
-        # Update session statistics
-        if was_successful:
-            session.incidents_resolved += 1
-        elif was_escalated:
-            session.incidents_escalated += 1
-        elif was_abandoned:
-            session.incidents_abandoned += 1
-        
-        session.total_time_spent_minutes += time_spent_minutes
-        session.save()
-        
         # Update user rating
         user_rating, created = UserRating.objects.get_or_create(user=request.user)
         
         # Get recent incident results for rating calculation
         recent_attempts = IncidentAttempt.objects.filter(user=request.user)[:10]
         recent_results = []
-        for attempt in recent_attempts:
+        for attempt_obj in recent_attempts:
             recent_results.append({
-                'total_points': attempt.points_earned,
+                'total_points': attempt_obj.points_earned,
                 'calculation_breakdown': {
-                    'severity': attempt.incident.severity,
-                    'time_limit': attempt.incident.time_limit_minutes,
-                    'actual_time': attempt.time_spent_minutes,
-                    'solution_type': 'root_cause' if attempt.was_root_cause_fix else 'workaround'
+                    'severity': attempt_obj.incident.severity,
+                    'time_limit': attempt_obj.incident.time_limit_minutes,
+                    'actual_time': attempt_obj.time_spent_minutes,
+                    'solution_type': 'root_cause' if attempt_obj.was_root_cause_fix else 'workaround'
                 }
             })
         
@@ -411,7 +388,20 @@ class ResolveIncidentView(APIView):
             'rating_change': rating_update['rating_change'],
             'new_overall_rating': rating_update['new_rating'],
             'attempt_id': attempt.id,
-            'incident_status': incident.status
+            'incident_status': incident.status,
+            'llm_grading': {
+                'overall_score': llm_grading_result.get('overall_score'),
+                'technical_accuracy': llm_grading_result.get('technical_accuracy'),
+                'problem_solving': llm_grading_result.get('problem_solving'),
+                'communication': llm_grading_result.get('communication'),
+                'efficiency': llm_grading_result.get('efficiency'),
+                'best_practices': llm_grading_result.get('best_practices'),
+                'is_correct': llm_grading_result.get('is_correct'),
+                'feedback': llm_grading_result.get('feedback', {}),
+                'correctness_explanation': llm_grading_result.get('correctness_explanation', ''),
+                'improvement_areas': llm_grading_result.get('improvement_areas', []),
+                'grading_method': llm_grading_result.get('grading_method', 'llm')
+            }
         }
         
         return Response(response_data)

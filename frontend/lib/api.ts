@@ -110,17 +110,9 @@ export const companyAPI = {
 
 // Simulation API
 export const simulationAPI = {
-  startSimulation: async (companyId: number, durationHours: number = 8) => {
-    const response = await api.post('/api/simulation/start/', {
-      company_id: companyId,
-      duration_hours: durationHours,
-    });
-    return response.data;
-  },
-  
-  generateIncident: async (sessionId: string, severity?: string, timeOfDay?: string) => {
+  generateIncident: async (companyId: number, severity?: string, timeOfDay?: string) => {
     const response = await api.post('/api/simulation/incident/generate/', {
-      session_id: sessionId,
+      company_id: companyId,
       severity,
       time_of_day: timeOfDay,
     });
@@ -129,7 +121,6 @@ export const simulationAPI = {
   
   resolveIncident: async (data: {
     incidentId: string;
-    sessionId: string;
     resolutionApproach: string;
     codeChanges?: string;
     commandsExecuted?: string[];
@@ -137,13 +128,6 @@ export const simulationAPI = {
     wasSuccessful: boolean;
   }) => {
     const response = await api.post('/api/simulation/incident/resolve/', data);
-    return response.data;
-  },
-  
-  endSimulation: async (sessionId: string) => {
-    const response = await api.post('/api/simulation/end/', {
-      session_id: sessionId,
-    });
     return response.data;
   },
 };
