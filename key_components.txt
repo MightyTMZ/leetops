@@ -1,0 +1,57 @@
+the user can select a desired company that they want to work at:
+
+- Federato
+- Shopify
+- a few fictitious startups (early stage codebases like landing pages)
+- RBC
+- Amazon
+- Windsurf
+- Databricks
+- Citadel Securities
+- Hudson River Trading (HRT)
+- Ollama
+- Cohere
+- Intact
+- Solana
+- Groq
+- Extraordinary.com (they are mostly a website codebase but we can still simulate that their website crashes)
+- QNX
+- Martian
+- VirtuFinance
+- ROX
+- Uber
+- Figma
+- Bloomberg
+- SnapChat
+- Jane Street Capital
+- Ramp
+- SnapChat
+- Rilla
+- Story
+- Intuit
+- Genesys
+- Rocket Innovation Studio
+- DRW
+- TD Bank
+- Canada Life
+- Coinbase
+- Warp
+- Accenture
+- Microsoft
+- Google
+- Mintlify
+- IBM
+- (more to come)
+
+we then put them through real life and real training on the job (a 100% simulated job)
+
+random time during the specified work day (9:00 to 5:00 pm)
+(during this time, since it is a simulated job, the engineer who is 
+training themselves cannot leave or do anything. The best way to get
+employed is to train like you're employed, and LeetOps is the ultimate
+way to do it. 
+)
+
+the engineers solve it and that is how they increase/decrease their LeetOps rating
+
+the base rating for engineers is 100, the best of the best can reach ratings of much higher

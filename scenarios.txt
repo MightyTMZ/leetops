@@ -1,0 +1,7 @@
+ALL problems are binding, 
+
+The clock winds no matter what. 
+This is not a tutorial mode, this is serious simulation of you being an on-call software engineer or a senior software engineer that is responsible for overseeing systems. The world does not wait for you. 
+LeetOps does it like its a real job. 
+Engineers who want to practice carve out a day or two on their schedule for the job simulation. 
+Problems crop up at any moment in time and the engineers are tasked to do it. They can give up, but now their rating goes down. But if they complete the problem, their rating goes up. They are not being really on the job, but it simulates it. That is true experience on the resume!
