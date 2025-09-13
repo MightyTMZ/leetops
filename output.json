@@ -1,0 +1,156 @@
+[
+  {
+    "company": "Amazon",
+    "title": "Customer Complaints - Unexpected $300,000 Bill",
+    "description": "Customer is calling regarding an unexpected bill of $300,000. They are disputing the charges and threatening to escalate to management. Need immediate investigation into billing system and customer account.",
+    "severity": "P0",
+    "status": "active",
+    "affected_services": ["billing-system", "customer-portal", "payment-processing"],
+    "error_logs": "Customer ID: CUST-12345, Bill Amount: $300,000, Date: 2024-01-15",
+    "monitoring_dashboard_url": "https://monitoring.amazon.com/billing",
+    "codebase_context": "Billing service running on AWS Lambda, DynamoDB for customer data storage"
+  },
+  {
+    "company": "Amazon",
+    "title": "DynamoDB Data Retrieval Failure",
+    "description": "Unable to pull data from DynamoDB. Customer data queries are failing, affecting multiple services including billing and customer support. Database connection timeouts occurring.",
+    "severity": "P1",
+    "status": "active",
+    "affected_services": ["dynamodb", "customer-service", "billing-system", "order-management"],
+    "error_logs": "DynamoDB ConnectionTimeoutException: Unable to connect to cluster. Read capacity exceeded.",
+    "monitoring_dashboard_url": "https://monitoring.amazon.com/dynamodb",
+    "codebase_context": "DynamoDB cluster in us-east-1, multiple Lambda functions accessing customer data"
+  },
+  {
+    "company": "Coinbase",
+    "title": "Liquidation and Collateral Calculation System Down",
+    "description": "Critical system for calculating liquidation and collateral in 40 microservices architecture is experiencing failures. Go and Java services are unable to process margin calculations.",
+    "severity": "P0",
+    "status": "active",
+    "affected_services": ["liquidation-engine", "collateral-calculator", "margin-service", "risk-management"],
+    "error_logs": "Go service panics in liquidation-engine, Java service timeouts in collateral-calculator",
+    "monitoring_dashboard_url": "https://monitoring.coinbase.com/risk",
+    "codebase_context": "40 microservices architecture, Go language for core services, Java for calculations, Ruby on Rails for web interface"
+  },
+  {
+    "company": "Bloomberg",
+    "title": "Misconfiguration Causing Deployment Failures",
+    "description": "Bad feature deployment due to configuration misconfigurations. New feature is causing system instability and needs immediate rollback. Deployment pipeline is compromised.",
+    "severity": "P1",
+    "status": "active",
+    "affected_services": ["deployment-pipeline", "feature-flags", "trading-platform", "data-feeds"],
+    "error_logs": "Configuration validation failed during deployment. Feature flag conflicts detected.",
+    "monitoring_dashboard_url": "https://monitoring.bloomberg.com/deployments",
+    "codebase_context": "Microservices deployment on Kubernetes, feature flags in Redis, trading data pipeline"
+  },
+  {
+    "company": "RBC",
+    "title": "Critical Server Downtime - Monetary and Reputation Loss",
+    "description": "Production servers have shut down unexpectedly, causing significant monetary loss and reputation damage. Banking services are completely unavailable to customers.",
+    "severity": "P0",
+    "status": "active",
+    "affected_services": ["core-banking", "online-banking", "atm-network", "payment-processing"],
+    "error_logs": "Server shutdown detected at 2024-01-15 07:00:00. All primary servers offline.",
+    "monitoring_dashboard_url": "https://monitoring.rbc.com/infrastructure",
+    "codebase_context": "Mainframe systems, distributed banking architecture, disaster recovery systems"
+  },
+  {
+    "company": "Intact",
+    "title": "Employee Authentication System Failure",
+    "description": "Authenticator for employees is not working, preventing staff from accessing critical systems. Traffic spikes are overwhelming the authentication service.",
+    "severity": "P1",
+    "status": "active",
+    "affected_services": ["employee-auth", "identity-provider", "single-sign-on", "internal-portals"],
+    "error_logs": "MFA token validation failing, high CPU usage on auth servers due to traffic spikes",
+    "monitoring_dashboard_url": "https://monitoring.intact.com/auth",
+    "codebase_context": "OAuth2/OIDC authentication, Azure AD integration, high traffic volume"
+  },
+  {
+    "company": "TD Bank",
+    "title": "Data Input Capacity Exceeded - IP/Subnet Issues",
+    "description": "System hitting capacity limits on data inputs. Running on IPs and subnets that are at maximum utilization. Transaction processing is being throttled.",
+    "severity": "P1",
+    "status": "active",
+    "affected_services": ["data-ingestion", "transaction-processing", "network-infrastructure", "database-clusters"],
+    "error_logs": "Network capacity exceeded on subnet 10.0.1.0/24, data input queue backlog of 10,000+ transactions",
+    "monitoring_dashboard_url": "https://monitoring.tdbank.com/network",
+    "codebase_context": "Distributed data processing, multiple IP ranges, high-volume transaction system"
+  },
+  {
+    "company": "Shopify",
+    "title": "Slow Query Race Condition - Inventory Conflicts",
+    "description": "Poor speed queries causing race conditions when two customers purchase the same item. Slow query fired before fast query loses, creating inventory conflicts and order failures.",
+    "severity": "P1",
+    "status": "active",
+    "affected_services": ["inventory-management", "order-processing", "database-queries", "checkout-system"],
+    "error_logs": "Query timeout on inventory check, race condition detected in order processing",
+    "monitoring_dashboard_url": "https://monitoring.shopify.com/database",
+    "codebase_context": "PostgreSQL database, Rails application, inventory locking mechanisms"
+  },
+  {
+    "company": "Shopify",
+    "title": "Bot Traffic Overwhelming Platform",
+    "description": "Malicious bots are overwhelming the Shopify platform, causing performance degradation and affecting legitimate customer transactions.",
+    "severity": "P2",
+    "status": "active",
+    "affected_services": ["web-application", "api-gateway", "rate-limiting", "security-monitoring"],
+    "error_logs": "High bot traffic detected from multiple IP ranges, rate limiting triggered",
+    "monitoring_dashboard_url": "https://monitoring.shopify.com/security",
+    "codebase_context": "Rails application with bot detection, CDN integration, API rate limiting"
+  },
+  {
+    "company": "Shopify",
+    "title": "Database CPU at Capacity - Write Operations Failing",
+    "description": "Too many writes to the database causing CPU utilization to reach 100%. No more write operations can occur, blocking all order processing and inventory updates.",
+    "severity": "P0",
+    "status": "active",
+    "affected_services": ["database-cluster", "write-operations", "order-processing", "inventory-updates"],
+    "error_logs": "Database CPU at 100%, write queue full, connection pool exhausted",
+    "monitoring_dashboard_url": "https://monitoring.shopify.com/database",
+    "codebase_context": "PostgreSQL cluster, high write volume, connection pooling"
+  },
+  {
+    "company": "Rox",
+    "title": "AWS RDS Utilization Critical - Distributed System Issues",
+    "description": "AWS RDS utilization is too high, causing distributed system performance issues. Similar to Shopify's problems with high database load affecting multiple services.",
+    "severity": "P1",
+    "status": "active",
+    "affected_services": ["aws-rds", "distributed-services", "data-processing", "api-endpoints"],
+    "error_logs": "RDS CPU utilization at 95%, connection timeouts, slow query performance",
+    "monitoring_dashboard_url": "https://monitoring.rox.com/aws",
+    "codebase_context": "AWS RDS PostgreSQL, distributed microservices architecture, high data volume"
+  },
+  {
+    "company": "Rox",
+    "title": "LLM Provider Response Delays - Product Bottleneck",
+    "description": "LLM providers are taking too long to respond, causing product bottlenecks and user experience degradation. AI-powered features are timing out.",
+    "severity": "P2",
+    "status": "active",
+    "affected_services": ["llm-integration", "ai-features", "product-api", "user-interface"],
+    "error_logs": "LLM API timeouts, response times > 30 seconds, circuit breaker triggered",
+    "monitoring_dashboard_url": "https://monitoring.rox.com/ai",
+    "codebase_context": "Multiple LLM provider integrations, AI feature pipeline, timeout handling"
+  },
+  {
+    "company": "Federato",
+    "title": "Kubernetes Pod Clusters Failing Sporadically",
+    "description": "Kubernetes pods and clusters are going down sporadically, causing downtime that is costing offshore teams productivity and affecting customer service.",
+    "severity": "P1",
+    "status": "active",
+    "affected_services": ["kubernetes-cluster", "pod-orchestration", "load-balancer", "monitoring"],
+    "error_logs": "Pod evictions detected, cluster nodes becoming unresponsive, resource constraints",
+    "monitoring_dashboard_url": "https://monitoring.federato.com/k8s",
+    "codebase_context": "Kubernetes cluster management, pod auto-scaling, resource monitoring"
+  },
+  {
+    "company": "Federato",
+    "title": "Customer Complaints - Multiple Service Issues",
+    "description": "Three customer complaints received regarding service reliability. Downtime is affecting customer satisfaction and offshore team productivity.",
+    "severity": "P2",
+    "status": "active",
+    "affected_services": ["customer-portal", "support-system", "offshore-tools", "communication-platforms"],
+    "error_logs": "Customer complaint tickets: #1234, #1235, #1236 - all related to service availability",
+    "monitoring_dashboard_url": "https://monitoring.federato.com/customers",
+    "codebase_context": "Customer support system, offshore team collaboration tools, service monitoring"
+  }
+]
