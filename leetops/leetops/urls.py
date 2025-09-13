@@ -15,8 +15,24 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include, re_path
+from playground import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    
+    # LeetOps API endpoints
+    path('api/companies/', views.CompanyListView.as_view(), name='company-list'),
+    path('api/companies/<int:company_id>/', views.CompanyDetailView.as_view(), name='company-detail'),
+    path('api/simulation/start/', views.StartSimulationView.as_view(), name='start-simulation'),
+    path('api/simulation/incident/generate/', views.GenerateIncidentView.as_view(), name='generate-incident'),
+    path('api/simulation/incident/resolve/', views.ResolveIncidentView.as_view(), name='resolve-incident'),
+    path('api/simulation/end/', views.end_simulation, name='end-simulation'),
+    path('api/user/rating/', views.UserRatingView.as_view(), name='user-rating'),
+    path('api/admin/initialize-companies/', views.initialize_companies, name='initialize-companies'),
+    
+    # Include djoser URLs for authentication
+    re_path(r'^auth/', include('djoser.urls')),
+    re_path(r'^auth/', include('djoser.urls.jwt')),
+
 ]
