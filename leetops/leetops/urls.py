@@ -26,6 +26,7 @@ urlpatterns = [
     # LeetOps API endpoints
     path('api/companies/', views.CompanyListView.as_view(), name='company-list'),
     path('api/companies/<int:company_id>/', views.CompanyDetailView.as_view(), name='company-detail'),
+    path('api/companies/<int:company_id>/incidents/', views.CompanyIncidentsView.as_view(), name='company-incidents'),
     path('api/simulation/incident/generate/', views.GenerateIncidentView.as_view(), name='generate-incident'),
     path('api/simulation/incident/resolve/', views.ResolveIncidentView.as_view(), name='resolve-incident'),
     path('api/user/rating/', views.UserRatingView.as_view(), name='user-rating'),

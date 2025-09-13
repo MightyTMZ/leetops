@@ -58,87 +58,88 @@ class RatingCalculator:
     }
     
     @classmethod
-    def calculate_incident_rating_with_llm(
+    def calculate_rating_with_groq_score(
         cls,
+        llm_score: int,
+        time_spent_minutes: int,
         time_limit_minutes: int,
-        actual_time_minutes: int,
-        solution_type: str,
-        severity: str,
-        was_successful: bool = True,
-        was_escalated: bool = False,
-        was_abandoned: bool = False,
-        llm_score: float = None,
-        llm_is_correct: bool = None
+        severity: str
     ) -> Dict[str, Any]:
         """
-        Calculate rating change for a single incident resolution with LLM grading integration
+        Calculate rating change based on Groq LLM score and time factors
         
         Args:
+            llm_score: Score from Groq LLM (0-100)
+            time_spent_minutes: Time taken to resolve
             time_limit_minutes: Time limit for resolution
-            actual_time_minutes: Actual time taken to resolve
-            solution_type: Type of solution (root_cause, workaround, escalation)
             severity: Incident severity (P0, P1, P2, P3)
-            was_successful: Whether the incident was successfully resolved
-            was_escalated: Whether the incident was escalated
-            was_abandoned: Whether the user gave up on the incident
-            llm_score: LLM overall score (1-10)
-            llm_is_correct: LLM assessment of correctness
             
         Returns:
             Dict containing rating calculation details
         """
         
-        # Use LLM assessment if available
-        if llm_is_correct is not None and not was_abandoned and not was_escalated:
-            was_successful = llm_is_correct
+        # Base rating change based on LLM score
+        if llm_score >= 80:
+            # High quality answer - high increase
+            base_rating_change = 25
+        elif llm_score >= 50:
+            # Medium quality answer - mid increase  
+            base_rating_change = 10
+        else:
+            # Poor answer - deduction regardless of time
+            base_rating_change = -15
         
-        # Handle penalties first
-        if was_abandoned:
-            return cls._calculate_penalty_rating("give_up")
+        # Time efficiency multiplier
+        if time_limit_minutes > 0:
+            time_ratio = time_spent_minutes / time_limit_minutes
+            
+            if llm_score >= 80:
+                # For high quality answers, reward speed
+                if time_ratio <= 0.5:
+                    time_multiplier = 1.5  # Very fast + high quality = bonus
+                elif time_ratio <= 0.75:
+                    time_multiplier = 1.2  # Fast + high quality = good bonus
+                else:
+                    time_multiplier = 1.0  # Normal time + high quality = base
+            elif llm_score >= 50:
+                # For medium quality answers, moderate time impact
+                if time_ratio <= 0.5:
+                    time_multiplier = 1.2  # Fast + medium quality = small bonus
+                elif time_ratio <= 0.75:
+                    time_multiplier = 1.0  # Normal time + medium quality = base
+                else:
+                    time_multiplier = 0.8  # Slow + medium quality = penalty
+            else:
+                # For poor answers, time doesn't help much
+                time_multiplier = 1.0
+        else:
+            time_multiplier = 1.0
         
-        if not was_successful and actual_time_minutes >= time_limit_minutes:
-            return cls._calculate_penalty_rating("timeout")
+        # Severity weight
+        severity_weights = {
+            "P0": 1.5,  # Critical incidents worth more
+            "P1": 1.2,  # High severity
+            "P2": 1.0,  # Medium severity
+            "P3": 0.8   # Low severity
+        }
+        severity_multiplier = severity_weights.get(severity, 1.0)
         
-        if was_escalated:
-            return cls._calculate_penalty_rating("escalation")
-        
-        # Calculate base points from severity
-        base_points = cls.SEVERITY_WEIGHTS.get(severity, 50)
-        
-        # Calculate speed bonus
-        time_ratio = actual_time_minutes / time_limit_minutes if time_limit_minutes > 0 else 1.0
-        speed_bonus = cls._get_speed_bonus(time_ratio)
-        
-        # Get quality multiplier
-        quality_multiplier = cls.QUALITY_MULTIPLIERS.get(solution_type, 1.0)
-        
-        # Apply LLM quality adjustment if available
-        if llm_score is not None:
-            # Convert LLM score (1-10) to quality multiplier (0.1-2.0)
-            llm_quality_multiplier = (llm_score / 10.0) * 2.0
-            quality_multiplier *= llm_quality_multiplier
-        
-        # Calculate final points
-        total_points = (base_points + speed_bonus) * quality_multiplier
-        
-        # Round to nearest integer
-        final_points = round(total_points)
+        # Calculate final rating change
+        final_rating_change = int(base_rating_change * time_multiplier * severity_multiplier)
         
         return {
-            "base_points": base_points,
-            "speed_bonus": speed_bonus,
-            "quality_multiplier": quality_multiplier,
-            "total_points": final_points,
-            "time_ratio": time_ratio,
-            "llm_adjusted": llm_score is not None,
+            "base_rating_change": base_rating_change,
+            "time_multiplier": time_multiplier,
+            "severity_multiplier": severity_multiplier,
+            "final_rating_change": final_rating_change,
+            "llm_score": llm_score,
+            "time_ratio": time_spent_minutes / time_limit_minutes if time_limit_minutes > 0 else 1.0,
             "calculation_breakdown": {
                 "severity": severity,
                 "time_limit": time_limit_minutes,
-                "actual_time": actual_time_minutes,
-                "solution_type": solution_type,
-                "speed_category": cls._get_speed_category(time_ratio),
+                "actual_time": time_spent_minutes,
                 "llm_score": llm_score,
-                "llm_is_correct": llm_is_correct
+                "quality_category": "high" if llm_score >= 80 else "medium" if llm_score >= 50 else "poor"
             }
         }
     

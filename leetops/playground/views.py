@@ -84,6 +84,43 @@ class CompanyDetailView(APIView):
         return Response(company_data)
 
 
+class CompanyIncidentsView(APIView):
+    """Get incidents for a specific company"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, company_id):
+        company = get_object_or_404(Company, id=company_id)
+        
+        # Get active incidents for this company
+        incidents = Incident.objects.filter(
+            company=company,
+            status='active'
+        ).order_by('-started_at')
+        
+        incidents_data = []
+        for incident in incidents:
+            incidents_data.append({
+                'incident_id': str(incident.id),
+                'title': incident.title,
+                'description': incident.description,
+                'severity': incident.severity,
+                'time_limit_minutes': incident.time_limit_minutes,
+                'affected_services': incident.affected_services,
+                'error_logs': incident.error_logs,
+                'codebase_context': incident.codebase_context,
+                'monitoring_dashboard_url': incident.monitoring_dashboard_url,
+                'started_at': incident.started_at,
+                'status': incident.status
+            })
+        
+        return Response({
+            'incidents': incidents_data,
+            'total': len(incidents_data),
+            'company_id': company_id,
+            'company_name': company.name
+        })
+
+
 class GenerateIncidentView(APIView):
     """Generate a new incident for a company"""
     permission_classes = [permissions.IsAuthenticated]
@@ -216,7 +253,7 @@ class ResolveIncidentView(APIView):
         
         print(f"DEBUG: Looking up incident with id: {incident_id}")
         try:
-            incident = get_object_or_404(Incident, id=incident_id, assigned_user=request.user)
+            incident = get_object_or_404(Incident, id=incident_id)
             print(f"DEBUG: Found incident: {incident.title}")
         except Exception as e:
             print(f"DEBUG: ERROR finding incident: {e}")
@@ -239,7 +276,7 @@ class ResolveIncidentView(APIView):
         was_escalated = solution_type == 'escalation'
         was_abandoned = solution_type == 'abandonment'
         
-        # Perform LLM grading
+        # Perform LLM grading with Groq
         try:
             incident_context = {
                 'affected_services': incident.affected_services,
@@ -261,44 +298,22 @@ class ResolveIncidentView(APIView):
                 time_limit_minutes=incident.time_limit_minutes
             )
             
-            # Override was_successful based on LLM grading if it's more accurate
-            llm_is_correct = llm_grading_result.get('is_correct', was_successful)
-            if not was_abandoned and not was_escalated:
-                was_successful = llm_is_correct
+            # Extract score and feedback from Groq response
+            groq_score = llm_grading_result.get('score', 50)
+            groq_feedback = llm_grading_result.get('feedback', 'No feedback available')
             
         except Exception as e:
-            print(f"LLM grading failed: {e}")
-            # Fallback to basic grading
-            llm_grading_result = {
-                'overall_score': 5,
-                'technical_accuracy': 5,
-                'problem_solving': 5,
-                'communication': 5,
-                'efficiency': 5,
-                'best_practices': 5,
-                'is_correct': was_successful,
-                'feedback': {
-                    'strengths': ['Attempted to resolve the incident'],
-                    'weaknesses': ['Could improve technical approach'],
-                    'suggestions': ['Review incident response best practices'],
-                    'overall_feedback': 'Grading completed using fallback system due to LLM unavailability.'
-                },
-                'correctness_explanation': 'Solution evaluated using fallback system',
-                'improvement_areas': ['Technical accuracy', 'Problem-solving approach'],
-                'grading_method': 'fallback'
-            }
+            print(f"Groq grading failed: {e}")
+            # Fallback grading
+            groq_score = 50
+            groq_feedback = "Grading completed using fallback system due to LLM unavailability."
         
-        # Calculate rating with LLM-informed scoring
-        rating_result = RatingCalculator.calculate_incident_rating_with_llm(
+        # Calculate rating with new Groq-based scoring
+        rating_result = RatingCalculator.calculate_rating_with_groq_score(
+            llm_score=groq_score,
+            time_spent_minutes=time_spent_minutes,
             time_limit_minutes=incident.time_limit_minutes,
-            actual_time_minutes=time_spent_minutes,
-            solution_type=solution_type,
-            severity=incident.severity,
-            was_successful=was_successful,
-            was_escalated=was_escalated,
-            was_abandoned=was_abandoned,
-            llm_score=llm_grading_result.get('overall_score'),
-            llm_is_correct=llm_grading_result.get('is_correct')
+            severity=incident.severity
         )
         
         # Create incident attempt record with LLM grading data
@@ -314,20 +329,20 @@ class ResolveIncidentView(APIView):
                 commands_executed=commands_executed,
                 was_successful=was_successful,
                 was_root_cause_fix=(solution_type == 'root_cause'),
-                points_earned=rating_result['total_points'],
-                quality_score=rating_result.get('quality_multiplier', 1.0),
-                # LLM grading results
-                llm_grade=llm_grading_result.get('overall_score'),
-                llm_technical_accuracy=llm_grading_result.get('technical_accuracy'),
-                llm_problem_solving=llm_grading_result.get('problem_solving'),
-                llm_communication=llm_grading_result.get('communication'),
-                llm_efficiency=llm_grading_result.get('efficiency'),
-                llm_best_practices=llm_grading_result.get('best_practices'),
-                llm_is_correct=llm_grading_result.get('is_correct'),
-                llm_feedback=llm_grading_result.get('feedback', {}),
-                llm_correctness_explanation=llm_grading_result.get('correctness_explanation', ''),
-                llm_improvement_areas=llm_grading_result.get('improvement_areas', []),
-                llm_grading_method=llm_grading_result.get('grading_method', 'llm')
+                points_earned=rating_result['final_rating_change'],
+                quality_score=rating_result.get('time_multiplier', 1.0),
+                # Groq grading results
+                llm_grade=groq_score,
+                llm_technical_accuracy=groq_score,  # Use same score for all fields
+                llm_problem_solving=groq_score,
+                llm_communication=groq_score,
+                llm_efficiency=groq_score,
+                llm_best_practices=groq_score,
+                llm_is_correct=(groq_score >= 50),
+                llm_feedback={'overall_feedback': groq_feedback},
+                llm_correctness_explanation=groq_feedback,
+                llm_improvement_areas=[],
+                llm_grading_method=llm_grading_result.get('grading_method', 'groq')
             )
             print(f"DEBUG: IncidentAttempt created successfully: {attempt.id}")
         except Exception as e:
@@ -347,37 +362,22 @@ class ResolveIncidentView(APIView):
         # Update user rating
         user_rating, created = UserRating.objects.get_or_create(user=request.user)
         
-        # Get recent incident results for rating calculation
-        recent_attempts = IncidentAttempt.objects.filter(user=request.user)[:10]
-        recent_results = []
-        for attempt_obj in recent_attempts:
-            recent_results.append({
-                'total_points': attempt_obj.points_earned,
-                'calculation_breakdown': {
-                    'severity': attempt_obj.incident.severity,
-                    'time_limit': attempt_obj.incident.time_limit_minutes,
-                    'actual_time': attempt_obj.time_spent_minutes,
-                    'solution_type': 'root_cause' if attempt_obj.was_root_cause_fix else 'workaround'
-                }
-            })
-        
-        rating_update = RatingCalculator.update_user_rating(
-            current_rating=user_rating.overall_rating,
-            incident_results=recent_results
-        )
+        # Apply the rating change directly
+        new_rating = max(800, min(1600, user_rating.overall_rating + rating_result['final_rating_change']))
+        rating_change = new_rating - user_rating.overall_rating
         
         # Update user rating record
-        user_rating.overall_rating = rating_update['new_rating']
-        user_rating.total_incidents_resolved += 1 if was_successful else 0
-        user_rating.average_resolution_time = rating_update['average_resolution_time']
-        user_rating.success_rate = rating_update['success_rate']
+        user_rating.overall_rating = new_rating
+        user_rating.total_incidents_resolved += 1 if groq_score >= 50 else 0
+        user_rating.average_resolution_time = time_spent_minutes  # Simple update for now
+        user_rating.success_rate = 0.8 if groq_score >= 50 else 0.2  # Simple calculation
         
-        # Update skill ratings
-        skill_ratings = rating_update['skill_ratings']
-        user_rating.debugging_skill = skill_ratings['debugging_skill']
-        user_rating.system_design = skill_ratings['system_design']
-        user_rating.incident_response = skill_ratings['incident_response']
-        user_rating.communication = skill_ratings['communication']
+        # Update skill ratings based on Groq score
+        skill_base = 800 + (groq_score * 6)  # Scale 800-1400 based on score
+        user_rating.debugging_skill = min(1600, skill_base + 20)
+        user_rating.system_design = min(1600, skill_base + 10)
+        user_rating.incident_response = min(1600, skill_base + 30)
+        user_rating.communication = min(1600, skill_base + 5)
         
         user_rating.save()
         
@@ -385,22 +385,14 @@ class ResolveIncidentView(APIView):
             'incident_resolved': True,
             'time_spent_minutes': time_spent_minutes,
             'rating_result': rating_result,
-            'rating_change': rating_update['rating_change'],
-            'new_overall_rating': rating_update['new_rating'],
+            'rating_change': rating_change,
+            'new_overall_rating': new_rating,
             'attempt_id': attempt.id,
             'incident_status': incident.status,
-            'llm_grading': {
-                'overall_score': llm_grading_result.get('overall_score'),
-                'technical_accuracy': llm_grading_result.get('technical_accuracy'),
-                'problem_solving': llm_grading_result.get('problem_solving'),
-                'communication': llm_grading_result.get('communication'),
-                'efficiency': llm_grading_result.get('efficiency'),
-                'best_practices': llm_grading_result.get('best_practices'),
-                'is_correct': llm_grading_result.get('is_correct'),
-                'feedback': llm_grading_result.get('feedback', {}),
-                'correctness_explanation': llm_grading_result.get('correctness_explanation', ''),
-                'improvement_areas': llm_grading_result.get('improvement_areas', []),
-                'grading_method': llm_grading_result.get('grading_method', 'llm')
+            'groq_grading': {
+                'score': groq_score,
+                'feedback': groq_feedback,
+                'grading_method': llm_grading_result.get('grading_method', 'groq')
             }
         }
         

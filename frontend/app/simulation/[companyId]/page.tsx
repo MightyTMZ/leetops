@@ -30,22 +30,9 @@ interface Incident {
   status: string;
 }
 
-interface LLMGrading {
-  overall_score: number;
-  technical_accuracy: number;
-  problem_solving: number;
-  communication: number;
-  efficiency: number;
-  best_practices: number;
-  is_correct: boolean;
-  feedback: {
-    strengths: string[];
-    weaknesses: string[];
-    suggestions: string[];
-    overall_feedback: string;
-  };
-  correctness_explanation: string;
-  improvement_areas: string[];
+interface GroqGrading {
+  score: number;
+  feedback: string;
   grading_method: string;
 }
 
@@ -57,9 +44,7 @@ interface ResolutionResult {
   new_overall_rating: number;
   attempt_id: string;
   incident_status: string;
-  llm_grading: LLMGrading;
-  adjusted_points: number;
-  quality_multiplier: number;
+  groq_grading: GroqGrading;
 }
 
 export default function SimulationPage() {
@@ -88,7 +73,7 @@ export default function SimulationPage() {
       return;
     }
 
-    fetchCompanyAndGenerateIncident();
+    fetchCompanyAndIncidents();
   }, [companyId, isAuthenticated, router]);
 
   useEffect(() => {
@@ -108,33 +93,43 @@ export default function SimulationPage() {
     return () => clearInterval(interval);
   }, [currentIncident, timeRemaining]);
 
-  const fetchCompanyAndGenerateIncident = async () => {
+  const fetchCompanyAndIncidents = async () => {
     try {
       // Fetch company details
       const companyResponse = await companyAPI.getCompany(parseInt(companyId));
       setCompany(companyResponse);
 
-      // Generate first incident directly
-      await generateNewIncident();
+      // Fetch incidents for this company
+      await fetchIncidents();
     } catch (error) {
-      console.error('Failed to load company and generate incident:', error);
+      console.error('Failed to load company and incidents:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const generateNewIncident = async () => {
+  const fetchIncidents = async () => {
     try {
-      const incidentResponse = await simulationAPI.generateIncident(parseInt(companyId));
-      setCurrentIncident(incidentResponse);
-      setTimeRemaining(incidentResponse.time_limit_minutes * 60); // Convert to seconds
-      setResolutionApproach('');
-      setCodeChanges('');
-      setCommandsExecuted([]);
-      setNewCommand('');
-      setSolutionType('workaround');
+      const incidentsResponse = await companyAPI.getCompanyIncidents(parseInt(companyId));
+      const incidents = incidentsResponse.incidents;
+      
+      if (incidents && incidents.length > 0) {
+        // Get the first active incident
+        const activeIncident = incidents[0];
+        setCurrentIncident(activeIncident);
+        setTimeRemaining(activeIncident.time_limit_minutes * 60); // Convert to seconds
+        setResolutionApproach('');
+        setCodeChanges('');
+        setCommandsExecuted([]);
+        setNewCommand('');
+        setSolutionType('workaround');
+      } else {
+        setCurrentIncident(null);
+        setTimeRemaining(0);
+      }
     } catch (error) {
-      console.error('Failed to generate incident:', error);
+      console.error('Failed to fetch incidents:', error);
+      setCurrentIncident(null);
     }
   };
 
@@ -167,7 +162,7 @@ export default function SimulationPage() {
 
       // Generate next incident after showing grading
       setTimeout(async () => {
-        await generateNewIncident();
+        await fetchIncidents();
         setShowGradingModal(false);
         setResolutionResult(null);
       }, 5000); // Show grading for 5 seconds
@@ -365,7 +360,7 @@ export default function SimulationPage() {
                       />
                     </div>
 
-                    <div>
+                    {/* <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Code Changes
                       </label>
@@ -406,7 +401,7 @@ export default function SimulationPage() {
                           </button>
                         </div>
                       </div>
-                    </div>
+                    </div> */}
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -453,10 +448,10 @@ export default function SimulationPage() {
                   Waiting for the next incident to occur...
                 </p>
                 <button
-                  onClick={generateNewIncident}
+                  onClick={fetchIncidents}
                   className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
-                  Generate Incident
+                  Refresh Incidents
                 </button>
               </div>
             )}
@@ -479,6 +474,10 @@ export default function SimulationPage() {
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Size</span>
                   <span className="text-sm font-medium text-gray-900">{company.company_size}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Status</span>
+                  <span className="text-sm font-medium text-green-600">Active</span>
                 </div>
               </div>
             </div>
@@ -520,7 +519,7 @@ export default function SimulationPage() {
         </div>
       </div>
 
-      {/* LLM Grading Modal */}
+      {/* Groq Grading Modal */}
       {showGradingModal && resolutionResult && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
@@ -529,9 +528,9 @@ export default function SimulationPage() {
                 <h2 className="text-2xl font-bold text-gray-900">Incident Resolution Grading</h2>
                 <div className="flex items-center space-x-4">
                   <div className="text-right">
-                    <div className="text-sm text-gray-500">Overall Score</div>
+                    <div className="text-sm text-gray-500">Groq Score</div>
                     <div className="text-3xl font-bold text-blue-600">
-                      {resolutionResult.llm_grading.overall_score}/10
+                      {resolutionResult.groq_grading.score}/100
                     </div>
                   </div>
                   <div className="text-right">
@@ -546,85 +545,79 @@ export default function SimulationPage() {
                 </div>
               </div>
 
-              {/* Detailed Scores */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                <div className="text-center p-3 bg-gray-50 rounded">
-                  <div className="text-sm text-gray-600">Technical</div>
-                  <div className="text-xl font-bold">{resolutionResult.llm_grading.technical_accuracy}/10</div>
-                </div>
-                <div className="text-center p-3 bg-gray-50 rounded">
-                  <div className="text-sm text-gray-600">Problem Solving</div>
-                  <div className="text-xl font-bold">{resolutionResult.llm_grading.problem_solving}/10</div>
-                </div>
-                <div className="text-center p-3 bg-gray-50 rounded">
-                  <div className="text-sm text-gray-600">Communication</div>
-                  <div className="text-xl font-bold">{resolutionResult.llm_grading.communication}/10</div>
-                </div>
-                <div className="text-center p-3 bg-gray-50 rounded">
-                  <div className="text-sm text-gray-600">Efficiency</div>
-                  <div className="text-xl font-bold">{resolutionResult.llm_grading.efficiency}/10</div>
-                </div>
-                <div className="text-center p-3 bg-gray-50 rounded">
-                  <div className="text-sm text-gray-600">Best Practices</div>
-                  <div className="text-xl font-bold">{resolutionResult.llm_grading.best_practices}/10</div>
+              {/* Score Quality Indicator */}
+              <div className="mb-6">
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <div className="text-sm text-gray-600 mb-2">Quality Assessment</div>
+                  <div className={cn(
+                    "text-2xl font-bold",
+                    resolutionResult.groq_grading.score >= 80 ? "text-green-600" :
+                    resolutionResult.groq_grading.score >= 50 ? "text-yellow-600" : "text-red-600"
+                  )}>
+                    {resolutionResult.groq_grading.score >= 80 ? "Excellent" :
+                     resolutionResult.groq_grading.score >= 50 ? "Good" : "Needs Improvement"}
+                  </div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    {resolutionResult.groq_grading.grading_method === 'groq' ? 'Graded by Groq AI' : 'Fallback Grading'}
+                  </div>
                 </div>
               </div>
 
               {/* Feedback */}
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Overall Feedback</h3>
-                  <p className="text-gray-700 bg-gray-50 p-4 rounded">
-                    {resolutionResult.llm_grading.feedback.overall_feedback}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <h4 className="font-semibold text-green-700 mb-2">Strengths</h4>
-                    <ul className="text-sm text-gray-700 space-y-1">
-                      {resolutionResult.llm_grading.feedback.strengths.map((strength, index) => (
-                        <li key={index} className="flex items-start">
-                          <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                          {strength}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-semibold text-red-700 mb-2">Areas for Improvement</h4>
-                    <ul className="text-sm text-gray-700 space-y-1">
-                      {resolutionResult.llm_grading.feedback.weaknesses.map((weakness, index) => (
-                        <li key={index} className="flex items-start">
-                          <XCircle className="h-4 w-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
-                          {weakness}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-semibold text-blue-700 mb-2">Suggestions</h4>
-                    <ul className="text-sm text-gray-700 space-y-1">
-                      {resolutionResult.llm_grading.feedback.suggestions.map((suggestion, index) => (
-                        <li key={index} className="flex items-start">
-                          <AlertTriangle className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
-                          {suggestion}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {resolutionResult.llm_grading.correctness_explanation && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">Correctness Explanation</h4>
-                    <p className="text-gray-700 bg-blue-50 p-4 rounded">
-                      {resolutionResult.llm_grading.correctness_explanation}
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Instructor Feedback</h3>
+                  <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                    <p className="text-gray-700 leading-relaxed">
+                      {resolutionResult.groq_grading.feedback}
                     </p>
                   </div>
-                )}
+                </div>
+
+                {/* Performance Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-gray-50 p-4 rounded">
+                    <h4 className="font-semibold text-gray-900 mb-2">Performance Summary</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Time Spent:</span>
+                        <span className="font-medium">{resolutionResult.time_spent_minutes} minutes</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">New Rating:</span>
+                        <span className="font-medium">{resolutionResult.new_overall_rating}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Status:</span>
+                        <span className={cn(
+                          "font-medium",
+                          resolutionResult.incident_status === 'resolved' ? "text-green-600" : "text-red-600"
+                        )}>
+                          {resolutionResult.incident_status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-4 rounded">
+                    <h4 className="font-semibold text-gray-900 mb-2">Rating Impact</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Change:</span>
+                        <span className={cn(
+                          "font-medium",
+                          resolutionResult.rating_change >= 0 ? "text-green-600" : "text-red-600"
+                        )}>
+                          {resolutionResult.rating_change >= 0 ? "+" : ""}{resolutionResult.rating_change}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Quality Score:</span>
+                        <span className="font-medium">{resolutionResult.groq_grading.score}/100</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="mt-6 pt-4 border-t border-gray-200">

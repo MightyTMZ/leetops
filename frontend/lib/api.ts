@@ -106,6 +106,11 @@ export const companyAPI = {
     const response = await api.get(`/api/companies/${companyId}/`);
     return response.data;
   },
+  
+  getCompanyIncidents: async (companyId: number) => {
+    const response = await api.get(`/api/companies/${companyId}/incidents/`);
+    return response.data;
+  },
 };
 
 // Simulation API
