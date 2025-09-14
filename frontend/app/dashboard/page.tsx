@@ -164,12 +164,12 @@ export default function DashboardPage() {
                       {company.company_size}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  {/* <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-500">Incident Rate</span>
                     <span className="text-xs font-medium text-gray-900">
                       {company.incident_frequency.toFixed(1)}/hour
                     </span>
-                  </div>
+                  </div> */}
                 </div>
 
                 <div className="flex flex-wrap gap-1 mb-4">
