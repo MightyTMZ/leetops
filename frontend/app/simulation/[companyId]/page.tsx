@@ -159,13 +159,6 @@ export default function SimulationPage() {
       setResolutionResult(result);
       setCurrentUserRating(result.new_overall_rating);
       setShowGradingModal(true);
-
-      // Generate next incident after showing grading
-      setTimeout(async () => {
-        await fetchIncidents();
-        setShowGradingModal(false);
-        setResolutionResult(null);
-      }, 5000); // Show grading for 5 seconds
     } catch (error) {
       console.error('Failed to resolve incident:', error);
     } finally {
@@ -175,6 +168,12 @@ export default function SimulationPage() {
 
   const goBackToDashboard = () => {
     router.push('/dashboard');
+  };
+
+  const handleCloseGradingModal = async () => {
+    setShowGradingModal(false);
+    setResolutionResult(null);
+    await fetchIncidents();
   };
 
   if (isLoading) {
@@ -542,6 +541,13 @@ export default function SimulationPage() {
                       {resolutionResult.rating_change >= 0 ? "+" : ""}{resolutionResult.rating_change}
                     </div>
                   </div>
+                  <button
+                    onClick={handleCloseGradingModal}
+                    className="ml-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                    title="Close grading modal"
+                  >
+                    <XCircle className="h-6 w-6" />
+                  </button>
                 </div>
               </div>
 
@@ -621,8 +627,16 @@ export default function SimulationPage() {
               </div>
 
               <div className="mt-6 pt-4 border-t border-gray-200">
-                <div className="text-center text-sm text-gray-500">
-                  Next incident will appear in a few seconds...
+                <div className="text-center">
+                  <button
+                    onClick={handleCloseGradingModal}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    Continue to Next Incident
+                  </button>
+                  <div className="text-sm text-gray-500 mt-2">
+                    Click the button above or the X in the top-right to continue
+                  </div>
                 </div>
               </div>
             </div>
