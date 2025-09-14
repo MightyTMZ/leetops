@@ -1,9 +1,20 @@
-'use client';
+"use client";
 
-import { useAuth } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { ArrowRight, Shield, Clock, Target, Users, Building2, Star } from 'lucide-react';
+import { useAuth } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import {
+  ArrowRight,
+  Shield,
+  Clock,
+  Target,
+  Users,
+  Building2,
+  Star,
+} from "lucide-react";
+import Image from "next/image";
+import LeetOpsLogo from "@/components/LeetOpsLogo";
+import { currentYear } from "@/data/constants";
 
 export default function Home() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -11,7 +22,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.push('/dashboard');
+      router.push("/dashboard");
     }
   }, [isAuthenticated, isLoading, router]);
 
@@ -30,10 +41,11 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <div className="h-8 w-8 flex items-center justify-center rounded-full bg-blue-100">
+              {/* <div className="h-8 w-8 flex items-center justify-center rounded-full bg-blue-100">
                 <span className="text-lg font-bold text-blue-600">L</span>
               </div>
-              <h1 className="ml-3 text-xl font-bold text-gray-900">LeetOps</h1>
+              <h1 className="ml-3 text-xl font-bold text-gray-900">LeetOps</h1> */}
+              <LeetOpsLogo />
             </div>
             <div className="flex items-center space-x-4">
               <a
@@ -61,9 +73,9 @@ export default function Home() {
             <span className="text-blue-600"> Engineering Credibility</span>
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            LeetOps is the standardized benchmark for on-call engineering reliability. 
-            Practice real-world incident response scenarios at top tech companies and 
-            prove your production skills.
+            LeetOps is the standardized benchmark for on-call engineering
+            reliability. Practice real-world incident response scenarios at top
+            tech companies and prove your production skills.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
@@ -88,24 +100,75 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              How LeetOps Works
+              Incidents don’t wait. Neither should you.
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Experience realistic on-call scenarios that mirror real-world engineering challenges
+              Experience realistic on-call scenarios that mirror real-world
+              engineering challenges
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Building2 className="h-8 w-8 text-blue-600" />
+              <div className="h-16 w-100vw rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
+                <div className="flex animate-slide">
+                  {[
+                    "/logos/amzn.jpg",
+                    "/logos/bloomberg.jpg",
+                    "/logos/coinbase.png",
+                    "/logos/federato.jpg",
+                    "/logos/google.png",
+                    "/logos/intact.png",
+                    "/logos/meta.png",
+                    "/logos/rbc.png",
+                    "/logos/rox.jpg",
+                    "/logos/shopify.png",
+                    "/logos/td.webp",
+                    "/logos/uber_logo.png",
+                  ].map((image, n) => (
+                    <div key={n} className="flex-shrink-0 mx-1">
+                      <Image
+                        src={image}
+                        height={50}
+                        width={50}
+                        alt="Company Logo"
+                        className="rounded-full"
+                      />
+                    </div>
+                  ))}
+                  {/* Duplicate the logos for seamless loop */}
+                  {[
+                    "/logos/amzn.jpg",
+                    "/logos/bloomberg.jpg",
+                    "/logos/coinbase.png",
+                    "/logos/federato.jpg",
+                    "/logos/google.png",
+                    "/logos/intact.png",
+                    "/logos/meta.png",
+                    "/logos/rbc.png",
+                    "/logos/rox.jpg",
+                    "/logos/shopify.png",
+                    "/logos/td.webp",
+                    "/logos/uber_logo.png",
+                  ].map((image, n) => (
+                    <div key={`duplicate-${n}`} className="flex-shrink-0 mx-1">
+                      <Image
+                        src={image}
+                        height={50}
+                        width={50}
+                        alt="Company Logo"
+                        className="rounded-full"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
                 Choose Your Company
               </h3>
               <p className="text-gray-600">
-                Select from top tech companies like Google, Amazon, Shopify, and more. 
-                Each company has unique tech stacks and incident patterns.
+                Select from top tech companies like Google, Amazon, Shopify, and
+                more. Each company has unique tech stacks and incident patterns.
               </p>
             </div>
 
@@ -117,8 +180,9 @@ export default function Home() {
                 Handle Real Incidents
               </h3>
               <p className="text-gray-600">
-                Respond to realistic incidents with actual error logs, monitoring dashboards, 
-                and codebase context. The clock is always ticking.
+                Respond to realistic incidents with actual error logs,
+                monitoring dashboards, and codebase context. The clock is always
+                ticking.
               </p>
             </div>
 
@@ -130,8 +194,9 @@ export default function Home() {
                 Build Your Rating
               </h3>
               <p className="text-gray-600">
-                Earn points based on resolution speed, solution quality, and approach. 
-                Your LeetOps rating becomes your engineering credibility score.
+                Earn points based on resolution speed, solution quality, and
+                approach. Your LeetOps rating becomes your engineering
+                credibility score.
               </p>
             </div>
           </div>
@@ -139,7 +204,7 @@ export default function Home() {
       </div>
 
       {/* Stats Section */}
-      <div className="bg-gray-50 py-16">
+      {/* <div className="bg-gray-50 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
             <div>
@@ -160,10 +225,10 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* CTA Section */}
-      <div className="bg-blue-600 py-16">
+      {/* <div className="bg-blue-600 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-white mb-4">
             Ready to Prove Your Engineering Skills?
@@ -180,13 +245,16 @@ export default function Home() {
             <ArrowRight className="ml-2 h-5 w-5" />
           </a>
         </div>
-      </div>
+      </div> */}
 
       {/* Footer */}
       <footer className="bg-gray-900 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center text-gray-400">
-            <p>&copy; 2024 LeetOps. The standardized benchmark for on-call engineering reliability.</p>
+            <p>
+              &copy; {currentYear} LeetOps. The standardized benchmark for on-call
+              engineering reliability.
+            </p>
           </div>
         </div>
       </footer>
