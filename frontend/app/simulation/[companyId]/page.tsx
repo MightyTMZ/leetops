@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { companyAPI, simulationAPI } from '@/lib/api';
 import { AlertTriangle, Clock, Code, Terminal, CheckCircle, XCircle, Loader2, Play, Square } from 'lucide-react';
 import { cn, formatTime, getSeverityColor, getSeverityLabel } from '@/lib/utils';
+import LeetOpsLogo from '@/components/LeetOpsLogo';
 
 interface Company {
   id: number;
@@ -197,9 +198,9 @@ export default function SimulationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-orange-gradient">
       {/* Header */}
-      <header className="bg-white shadow">
+      <header className="bg-white/90 backdrop-blur-sm shadow-lg border-b border-orange-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
@@ -209,19 +210,17 @@ export default function SimulationPage() {
               >
                 ← Back to Dashboard
               </button>
-              <div className="h-8 w-8 flex items-center justify-center rounded-full bg-blue-100">
-                <span className="text-lg font-bold text-blue-600">L</span>
-              </div>
+              <LeetOpsLogo size={32} />
               <div className="ml-3">
                 <h1 className="text-xl font-bold text-gray-900">{company.name}</h1>
-                <p className="text-sm text-gray-600">On-Call Simulation</p>
+                <p className="text-sm text-orange-primary">On-Call Simulation</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               {/* Current Rating Display */}
-              <div className="flex items-center px-3 py-2 bg-blue-50 rounded-md">
-                <span className="text-sm font-medium text-blue-700">Rating:</span>
-                <span className="ml-2 text-lg font-bold text-blue-900">{currentUserRating}</span>
+              <div className="flex items-center px-3 py-2 bg-orange-light rounded-md border border-orange-200">
+                <span className="text-sm font-medium text-orange-primary">Rating:</span>
+                <span className="ml-2 text-lg font-bold text-orange-primary">{currentUserRating}</span>
               </div>
               
               {/* Timer Display */}
@@ -239,7 +238,7 @@ export default function SimulationPage() {
               
               <button
                 onClick={goBackToDashboard}
-                className="flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                className="flex items-center px-3 py-2 border border-orange-300 rounded-md text-sm font-medium text-orange-primary bg-white hover:bg-orange-light"
               >
                 <Square className="h-4 w-4 mr-2" />
                 Back to Dashboard
@@ -448,7 +447,7 @@ export default function SimulationPage() {
                 </p>
                 <button
                   onClick={fetchIncidents}
-                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="mt-4 px-4 py-2 bg-orange-primary text-white rounded-md hover:bg-orange-primary/90"
                 >
                   Refresh Incidents
                 </button>
@@ -630,7 +629,7 @@ export default function SimulationPage() {
                 <div className="text-center">
                   <button
                     onClick={handleCloseGradingModal}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    className="px-6 py-2 bg-orange-primary text-white rounded-md hover:bg-orange-primary/90 transition-colors"
                   >
                     Continue to Next Incident
                   </button>

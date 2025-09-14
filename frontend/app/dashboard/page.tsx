@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Building2, Users, Clock, Star, ArrowRight, Loader2 } from 'lucide-react';
 import { cn, getCompanySizeColor } from '@/lib/utils';
 import Image from 'next/image';
+import LeetOpsLogo from '@/components/LeetOpsLogo';
 
 interface Company {
   id: number;
@@ -72,16 +73,13 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-orange-gradient">
       {/* Header */}
-      <header className="bg-white shadow">
+      <header className="bg-white/90 backdrop-blur-sm shadow-lg border-b border-orange-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
-              <div className="h-8 w-8 flex items-center justify-center rounded-full bg-blue-100">
-                <span className="text-lg font-bold text-blue-600">L</span>
-              </div>
-              <h1 className="ml-3 text-2xl font-bold text-gray-900">LeetOps</h1>
+              <LeetOpsLogo size={32} />
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
