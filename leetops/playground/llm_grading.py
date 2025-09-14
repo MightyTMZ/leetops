@@ -53,11 +53,11 @@ class LLMGrader:
         try:
             # Call Groq API
             response = self.client.chat.completions.create(
-                model="llama3-8b-8192",  # Fast and efficient model
+                model="llama-3.3-70b-versatile",  # Fast and efficient model
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert incident response instructor. Rate the quality of the response out of 100 and provide concise, educational feedback like you're teaching best practices for incident response."
+                        "content": "You are an expert incident response instructor. Rate the quality of the response out of 100 and provide concise, educational feedback like you're teaching best practices for incident response. First return the score of the numerical score of the response as the first characters. And then enter a line of 10 equals signs and underneath leave your educational feedback below there."
                     },
                     {
                         "role": "user",
@@ -124,10 +124,6 @@ Solution Type: {user_solution_type}
 Please provide:
 1. A score out of 100 (0-100)
 2. A concise paragraph of feedback teaching best practices for incident response
-
-Format your response as:
-SCORE: [number out of 100]
-FEEDBACK: [concise educational paragraph]
 """
         return prompt
     
@@ -138,16 +134,35 @@ FEEDBACK: [concise educational paragraph]
             score = 50  # Default score
             feedback = "Unable to parse feedback from LLM response."
             
-            for line in lines:
-                if line.startswith('SCORE:'):
-                    try:
-                        score_text = line.replace('SCORE:', '').strip()
-                        score = int(score_text)
+            # Look for the score at the beginning of the response
+            if lines:
+                first_line = lines[0].strip()
+                # Try to extract score from first line (could be just a number or have text)
+                try:
+                    # Look for any number in the first line
+                    import re
+                    score_match = re.search(r'\b(\d{1,3})\b', first_line)
+                    if score_match:
+                        score = int(score_match.group(1))
                         score = max(0, min(100, score))  # Clamp between 0-100
-                    except ValueError:
-                        score = 50
-                elif line.startswith('FEEDBACK:'):
-                    feedback = line.replace('FEEDBACK:', '').strip()
+                except ValueError:
+                    score = 50
+            
+            # Look for the feedback after the equals signs
+            feedback_lines = []
+            found_equals = False
+            
+            for line in lines:
+                if '=' in line and len(line.strip().replace('=', '')) == 0:
+                    # Found the equals separator
+                    found_equals = True
+                    continue
+                elif found_equals and line.strip():
+                    # Collect feedback lines after equals
+                    feedback_lines.append(line.strip())
+            
+            if feedback_lines:
+                feedback = ' '.join(feedback_lines)
             
             return {
                 'score': score,
