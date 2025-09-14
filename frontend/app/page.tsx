@@ -35,7 +35,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-orange-gradient">
       {/* Navigation */}
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -50,13 +50,13 @@ export default function Home() {
             <div className="flex items-center space-x-4">
               <a
                 href="/login"
-                className="text-sm text-gray-600 hover:text-gray-900"
+                className="text-sm text-gray-600 hover:text-orange-900"
               >
                 Sign In
               </a>
               <a
                 href="/register"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+                className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm font-medium"
               >
                 Get Started
               </a>
@@ -70,17 +70,17 @@ export default function Home() {
         <div className="text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
             The New Currency of
-            <span className="text-blue-600"> Engineering Credibility</span>
+            <span className="text-orange-600"> Engineering Credibility</span>
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
             LeetOps is the standardized benchmark for on-call engineering
-            reliability. Practice real-world incident response scenarios at top
-            tech companies and prove your production skills.
+            reliability. Practice real-world incident response scenarios at <strong>top
+            tech companies </strong> and prove your production skills.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
               href="/register"
-              className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-lg flex items-center justify-center"
+              className="px-8 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium text-lg flex items-center justify-center"
             >
               Start Practicing
               <ArrowRight className="ml-2 h-5 w-5" />
