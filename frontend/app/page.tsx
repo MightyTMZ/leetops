@@ -75,7 +75,7 @@ export default function Home() {
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
             LeetOps is the standardized benchmark for on-call engineering
             reliability. Practice real-world incident response scenarios at <strong>top
-            tech companies </strong> and prove your production skills.
+            tech companies </strong> and prove your on-call response skills and reliability.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
