@@ -36,6 +36,7 @@ urlpatterns = [
     re_path(r'^auth/', include('djoser.urls')),
     re_path(r'^auth/', include('djoser.urls.jwt')),
 
+    path('api/temp-reset', views.reset_all_to_active, name="")
 ]
 
 if settings.DEBUG:

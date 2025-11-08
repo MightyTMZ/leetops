@@ -117,8 +117,6 @@ Codebase Context: {incident_context.get('codebase_context', 'N/A')}
 
 USER'S RESPONSE:
 Resolution Approach: {user_resolution_approach}
-Code Changes: {user_code_changes}
-Commands Executed: {', '.join(user_commands_executed) if user_commands_executed else 'None'}
 Solution Type: {user_solution_type}
 
 Please provide:

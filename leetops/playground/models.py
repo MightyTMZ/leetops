@@ -75,7 +75,7 @@ class Incident(models.Model):
         ordering = ['-started_at']
     
     def __str__(self):
-        return f"{self.title} ({self.severity}) - {self.company.name}"
+        return f"{self.status.upper()} {self.title} ({self.severity}) - {self.company.name}"
 
 
 class UserRating(models.Model):

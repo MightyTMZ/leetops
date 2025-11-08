@@ -417,3 +417,17 @@ def initialize_companies(request):
         'companies_created': created_companies,
         'total_companies': Company.objects.count()
     })
+
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+
+@require_GET
+def reset_all_to_active(request):
+    # Update all incidents to 'active'
+    updated_count = Incident.objects.update(status='active')
+    
+    return JsonResponse({
+        'message': 'All incidents updated to active',
+        'updated_count': updated_count
+    })
